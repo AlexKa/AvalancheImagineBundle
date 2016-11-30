@@ -26,34 +26,23 @@ class ImagineLoader extends Loader
 
     public function load($resource, $type = null)
     {
-        $routes = new RouteCollection();
-
-        foreach ($this->filters as $filter => $options) {
-            if (isset($options['path'])) {
-                // FIXME: "path" option is not supported at the moment
-                throw new UnsupportedOptionException('Unfortunately "path" option is not yet supported.');
-                $this->addRoute($routes, $filter, '/' . trim($options['path'], '/') . '/{path}');
-
-                continue;
-            }
-
-            foreach ($this->cacheParams->getRouteOptions() as $host => $cachePrefix) {
-                $this->addRoute($routes, $filter, '/' . trim($cachePrefix, '/') . '/{filter}/{path}', $host);
+        $requirements = array('_method' => 'GET', 'filter' => '[A-z0-9_\-]*', 'path' => '.+');
+        $defaults     = array('_controller' => 'imagine.controller:filter');
+        $routes       = new RouteCollection();
+        if (count($this->filters) > 0) {
+            foreach ($this->filters as $filter => $options) {
+                if (isset($options['path'])) {
+                    $pattern = '/'.trim($options['path'], '/').'/{path}';
+                } else {
+                    $pattern = '/'.trim($this->cachePrefix, '/').'/{filter}/{path}';
+                }
+                $routes->add('_imagine_'.$filter, new Route(
+                    $pattern,
+                    array_merge( $defaults, array('filter' => $filter)),
+                    $requirements
+                ));
             }
         }
-
         return $routes;
-    }
-
-    private function addRoute(RouteCollection $routes, $filter, $pattern, $host = '')
-    {
-        $requirements = ['_methods' => 'GET', 'filter' => '[A-z0-9_\-]*', 'path' => '.+'];
-        $defaults     = ['_controller' => 'imagine.controller:filterAction'];
-        $routeSuffix  = '_' . preg_replace('#[^a-z0-9]+#i', '_', $host);
-
-        $routes->add(
-            '_imagine_' . $filter . $routeSuffix,
-            new Route($pattern, array_merge($defaults, ['filter' => $filter]), $requirements, [], $host)
-        );
     }
 }
